@@ -10,22 +10,19 @@ type Done struct {
 	tmpPump      *big.Int
 	provenUpTo   *big.Int
 	sparseProven []*big.Int
+	maxSize      int
 }
 
-func NewDone(size int) *Done {
-	done := Done{
+func NewDone(maxSize int) *Done {
+	return &Done{
 		ONE:          big.NewInt(1),
 		THREE:        big.NewInt(3),
 		tmp:          big.NewInt(0),
 		tmpAdd:       big.NewInt(0),
 		tmpPump:      big.NewInt(0),
 		provenUpTo:   big.NewInt(1),
-		sparseProven: make([]*big.Int, size),
+		sparseProven: make([]*big.Int, 0),
 	}
-	for i := 0; i < size; i++ {
-		done.sparseProven[i] = big.NewInt(1)
-	}
-	return &done
 }
 
 func (d *Done) KnownToConverge(i *big.Int) bool {
@@ -52,17 +49,24 @@ func (d *Done) AddKnownToConverge(i *big.Int) {
 }
 
 func (d *Done) insertIntoSparseProven(i *big.Int) {
-	for idx := 0; idx < len(d.sparseProven); idx++ {
-		cmp := d.sparseProven[idx].Cmp(i)
-		if cmp == 0 {
-			return // already there
-		} else if cmp > 0 || d.sparseProven[idx].Cmp(d.ONE) == 0 {
-			for idx2 := len(d.sparseProven) - 2; idx2 >= idx; idx2-- {
-				d.sparseProven[idx2+1].Set(d.sparseProven[idx2])
+	elem := &big.Int{}
+	elem.Set(i)
+	if len(d.sparseProven) == 0 {
+		d.sparseProven = append(d.sparseProven, elem)
+	} else {
+		for idx := 0; idx < len(d.sparseProven); idx++ {
+			cmp := d.sparseProven[idx].Cmp(i)
+			if cmp == 0 {
+				return // already there
+			} else if cmp > 0 {
+				d.sparseProven = append(d.sparseProven, nil)
+				copy(d.sparseProven[idx+1:], d.sparseProven[idx:])
+				d.sparseProven[idx] = elem
+				//d.sparseProven = append(d.sparseProven[:idx], append([]*big.Int{elem}, d.sparseProven[idx:]...)...)
+				return
 			}
-			d.sparseProven[idx].Set(i)
-			return
 		}
+		d.sparseProven = append(d.sparseProven, elem)
 	}
 }
 
@@ -79,14 +83,16 @@ func (d *Done) String() (out string) {
 
 func (d *Done) pumpProvenUpToIfPossible() {
 	for {
+		if len(d.sparseProven) == 0 {
+			return
+		}
 		d.tmpPump.Set(d.sparseProven[0])
 		d.tmpPump.Sub(d.tmpPump, d.provenUpTo)
 		if d.tmpPump.IsInt64() && d.tmpPump.Int64() == 1 {
 			d.provenUpTo.Set(d.sparseProven[0])
-			for idx := 0; idx < len(d.sparseProven)-2; idx++ {
-				d.sparseProven[idx].Set(d.sparseProven[idx+1])
-			}
-			d.sparseProven[len(d.sparseProven)-1].Set(d.ONE)
+			copy(d.sparseProven[0:], d.sparseProven[1:])
+			d.sparseProven[len(d.sparseProven)-1] = nil
+			d.sparseProven = d.sparseProven[:len(d.sparseProven)-1]
 		} else {
 			return
 		}

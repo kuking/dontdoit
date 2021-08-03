@@ -44,8 +44,9 @@ func TestDoneStateFor10(t *testing.T) {
 func TestDoneStateFor3(t *testing.T) {
 	d := NewDone(10)
 	d.VerifyConverges(big.NewInt(3), true)
+	// 3, 10, 5, 16, 8, 4, 2, 1
 	// provenUpTo: 5, sparseProven: 8, 10, 16
-	println(d.String())
+	//println(d.String())
 	if d.provenUpTo.Int64() != 5 {
 		t.Fail()
 	}
@@ -66,5 +67,14 @@ func TestDoneStateFor3(t *testing.T) {
 	}
 	if d.KnownToConverge(big.NewInt(200)) {
 		t.Fail()
+	}
+}
+
+func TestMiniPerf(t *testing.T) {
+	d := NewDone(1)
+	for i := 0; i < 1_000; i++ {
+		if d.VerifyConverges(big.NewInt(int64(i)), false) {
+			d.VerifyConverges(big.NewInt(int64(i)), true)
+		}
 	}
 }

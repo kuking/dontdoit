@@ -30,11 +30,10 @@ func main() {
 		}
 
 		c++
-		if c == 100 {
+		if c == 1000 {
 			println(n.Text(10), " verified; ", done.String()[0:100])
 			c = 0
 		}
-		//println(done.String())
 	}
 
 }
