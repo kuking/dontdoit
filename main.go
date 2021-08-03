@@ -2,10 +2,6 @@ package main
 
 import "math/big"
 
-func converges(n *big.Int) bool {
-
-}
-
 func main() {
 	println("dont do it")
 
@@ -21,10 +17,12 @@ func main() {
 			done.AddKnownToConverge(n)
 			n.Add(n, done.ONE)
 		} else { // even, needs to check
-
-			converges(n)
-
-
+			if done.VerifyConverges(n, false) {
+				println(n.Text(10), "verified to converge")
+				done.VerifyConverges(n, true)
+				done.AddKnownToConverge(n)
+				n.Add(n, done.ONE)
+			}
 
 		}
 	}
