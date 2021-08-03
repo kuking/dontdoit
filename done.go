@@ -7,6 +7,7 @@ type Done struct {
 	THREE        *big.Int
 	tmp          *big.Int
 	tmpAdd       *big.Int
+	tmpPump      *big.Int
 	provenUpTo   *big.Int
 	sparseProven []*big.Int
 }
@@ -17,6 +18,7 @@ func NewDone(size int) *Done {
 		THREE:        big.NewInt(3),
 		tmp:          big.NewInt(0),
 		tmpAdd:       big.NewInt(0),
+		tmpPump:      big.NewInt(0),
 		provenUpTo:   big.NewInt(1),
 		sparseProven: make([]*big.Int, size),
 	}
@@ -27,17 +29,25 @@ func NewDone(size int) *Done {
 }
 
 func (d *Done) KnownToConverge(i *big.Int) bool {
-	return d.provenUpTo.Cmp(i) >= 0
+	if d.provenUpTo.Cmp(i) >= 0 {
+		return true
+	}
+	for idx := 0; idx < len(d.sparseProven); idx++ {
+		cmp := d.sparseProven[idx].Cmp(i)
+		if cmp == 0 {
+			return true
+		} else if cmp > 0 {
+			return false
+		}
+	}
+	return false
 }
 
 func (d *Done) AddKnownToConverge(i *big.Int) {
-	d.tmpAdd.Set(i)
-	d.tmpAdd.Sub(d.tmp, d.provenUpTo)
-	if d.tmpAdd.IsInt64() && d.tmpAdd.Int64() == 1 {
-		d.provenUpTo.Add(d.provenUpTo, d.ONE)
-	} else {
-		d.insertIntoSparseProven(i)
+	if d.KnownToConverge(i) {
+		return
 	}
+	d.insertIntoSparseProven(i)
 	d.pumpProvenUpToIfPossible()
 }
 
@@ -68,7 +78,19 @@ func (d *Done) String() (out string) {
 }
 
 func (d *Done) pumpProvenUpToIfPossible() {
-
+	for {
+		d.tmpPump.Set(d.sparseProven[0])
+		d.tmpPump.Sub(d.tmpPump, d.provenUpTo)
+		if d.tmpPump.IsInt64() && d.tmpPump.Int64() == 1 {
+			d.provenUpTo.Set(d.sparseProven[0])
+			for idx := 0; idx < len(d.sparseProven)-2; idx++ {
+				d.sparseProven[idx].Set(d.sparseProven[idx+1])
+			}
+			d.sparseProven[len(d.sparseProven)-1].Set(d.ONE)
+		} else {
+			return
+		}
+	}
 }
 
 func (d *Done) VerifyConverges(i *big.Int, adding bool) bool {
@@ -78,7 +100,6 @@ func (d *Done) VerifyConverges(i *big.Int, adding bool) bool {
 	var loops int64 = 0
 	d.tmp.Set(i)
 	for {
-		//print(d.tmp.Text(10), " ")
 		if d.KnownToConverge(d.tmp) {
 			return true
 		}
@@ -91,11 +112,9 @@ func (d *Done) VerifyConverges(i *big.Int, adding bool) bool {
 			d.tmp = d.tmp.Mul(d.tmp, d.THREE)
 			d.tmp = d.tmp.Add(d.tmp, d.ONE)
 		}
-		if adding {
-			d.AddKnownToConverge(d.tmp)
-		}
 		loops++
-		if loops > 2^32 { // FIXME
+		if loops > 1<<32 { // FIXME
+			println("Gave up verifying", i.Text(10), " after 2^32 iterations.")
 			return false
 		}
 	}

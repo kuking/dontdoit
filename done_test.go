@@ -51,8 +51,20 @@ func TestDoneStateFor3(t *testing.T) {
 	}
 	if d.sparseProven[0].Int64() != 8 ||
 		d.sparseProven[1].Int64() != 10 ||
-		d.sparseProven[4].Int64() != 16 {
+		d.sparseProven[2].Int64() != 16 {
 		t.Fail()
 	}
 
+	if !d.KnownToConverge(big.NewInt(4)) {
+		t.Fail()
+	}
+	if d.KnownToConverge(big.NewInt(9)) {
+		t.Fail()
+	}
+	if !d.KnownToConverge(big.NewInt(10)) {
+		t.Fail()
+	}
+	if d.KnownToConverge(big.NewInt(200)) {
+		t.Fail()
+	}
 }
